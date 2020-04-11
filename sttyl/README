@@ -1,0 +1,108 @@
+Author:   Frank O'Connor
+Date:     02/27/2014
+Contains: Design details for CSCI E-28 hw 3
+==============================================================================
+
+Project: sttyl 
+
+Purpose: 
+        To write a program sttyl the implements part of the regular Unix stty
+        command. Like stty it should enable to the user to change the tty 
+		settings by passing the setting to be changed as a command line arg,
+		and should also display the current tty settings if the application 
+		is invoked with no cmd line args passed.
+    
+Outline:
+        sttyl is invoked from the command line. The application first gets
+		the current tty settings by using tcgetattr and stores the results in
+		a termios struct as a local copy. It applies all changes to this struct
+		before changing the tty settings by calling tcsetattr and passing the
+		struct with the altered values.
+		If sttyl is invoked with no cmd line args then the tty settings are 
+		displayed to the user. (As required by the assignment sttyl deals with
+		a subset of the overall tty settings, all settings in this subset are
+		printed to the user). After tcgetattr is called for the current 
+		settings, cfgetospeed is called to get the baud rate in a parseable 
+		form. This is then parsed and printed to the user. The application
+		creates tables to store info regarding the tty flag it can interact 
+		with (a subset of all tty settings). These tables store a name and 
+		value for each of the tty flags. The flags are seperated into different
+		tables by logical groupings of, input flags, output flags, control 
+		flags, local flags, and control characters. Each of the flags are 
+		printed to the user by iterating through the tables and using the value
+		in the table to do a bitwise and with the associated flag in the 
+		termios struct. The result indicating whether the flag is set on/off.
+		When printing the result, the flag name is printed indicating the flag
+		is set on, or preceeded by '-' indicating it is set off.
+		The exception is control char table, the values stored in this table
+		refer to the index of the associated value in the cc_flag array in 
+		the termios struct. Using the value as the index, the stored character
+		associated with the setting can be printed. 
+		Although not required by the assignment this implementation tries to
+		deal with the combination of the ctrl-btn being pressed with
+		another character as the value for commands in cc_flag array. The 
+		ctrl-btn chars are differentiated as being below a certain number in
+		the ascii value table. Any value below this cutoff is printed with a
+		'^' preceding the character. The backspace char is an exception it
+		is the number 127 in the ascii table and is printed as '^?'. All 
+		other characters are just printed as is. 
+		sttyl also accepts args on the command line, multiple args may be 
+		passed. For the control chars the args should be entered as the 
+		command followed by the value for the char that will perform the 
+		command (e.g. "sttyl kill Y" sets the kill command to the the char Y). 
+		For other input, output, local and control flags the name of the flag
+		should be passed as an arg to set the bit on, or the name preceeded 
+		by '-' to set the bit off (e.g. "sttyl -echo brkint" sets the echo bit
+		off, and the brkint bit on). The application takes these args and 
+		parses them one at a time checking each of the tables to see if a 
+		match exists for the specified flag. If an appropriate match is found
+		then the matching bit is set in the local copy of the termios struct.
+		Once all args are parsed, and if no exceptions are encountered then
+		tcsetattr is invoked and passed the local copy of the tty settings to
+		apply these changes. If an exception is encountered, the changes
+		are instead discarded.
+
+Output:
+        sttyl prints out the current tty settings to the user when no cmd line
+		args are passed (a subset of all tty settings).
+
+Arguments:
+        If no args are passed sttyl it prints current tty settings. 
+		If args are passed they are interpretted as flags to be set.
+		For input, output, local and control flags the name of the flag
+		should be passed as an arg to set the bit on, or the name preceeded 
+		by '-' to set the bit off (e.g. "sttyl -echo brkint" sets the echo bit
+		off, and the brkint bit on).
+		For the control chars the args should be entered as the command 
+		followed by the value for the char that will perform the command 
+		(e.g. "sttyl kill Y" sets the kill command to the the char Y). 
+		These may also be combined (e.g. "sttyl kill Y -echo brkint").
+        The args can be entered in any order.
+        If a control char is found the first char of the next arg is taken 
+		as the value for the char, with the exception of '^' which is 
+		interpretted as a press of the ctrl-btn with another char, (in this
+		case it also takes the next char as the btn combined with ctrl-btn).
+		If '^' is entered alone then is is taken as the literal char '^'.
+
+Input:
+        sttyl does not accept any user input, other than the cmd line args
+		passed to it.
+		
+Error Handling:
+		In the case where an error is encountered in calls to tcgetattr or
+		tcsetattr then and error is printed to the user and sttyl fails and 
+		returns EXIT_FAILURE. 
+		If an arg is passed that is not recognized then the error "Invalid 
+		argument " is printed and sttyl returns EXIT_FAILURE.
+		If a control char is found and there is no following arg supplied 
+		then sttyl prints the error "missing argument" along with the contorl
+		char, and then fails and returns EXIT_FAILURE.
+
+Data Structures:
+        The current tty settings are stored in a local copy in a termios 
+		struct. Tables are used to store the flag names and value of the masks
+		the flags require. Seperate tables are created for input, output, 
+		local, control flags, and also control characaters.
+
+Files:
+        No major interaction with files.
